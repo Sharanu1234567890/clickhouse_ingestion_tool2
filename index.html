@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Ingestion Tool</title>
+</head>
+<body>
+    <h2>Data Ingestion Tool</h2>
+    <div>
+        <label>Host:</label><input id="host" type="text" />
+        <label>Port:</label><input id="port" type="text" />
+        <label>User:</label><input id="user" type="text" />
+        <label>Database:</label><input id="database" type="text" />
+        <label>JWT Token:</label><input id="token" type="text" />
+        <button onclick="connectToClickHouse()">Connect</button>
+    </div>
+
+    <div id="tables">
+        <label>Tables:</label><select id="tableSelect"></select>
+    </div>
+
+    <div id="columns">
+        <label>Columns:</label><select id="columnSelect" multiple></select>
+    </div>
+
+    <button onclick="exportCSV()">Export to CSV</button>
+
+    <div>
+        <label>Upload CSV for Import:</label><input id="csvFile" type="file" />
+        <button onclick="importCSV()">Import to ClickHouse</button>
+    </div>
+
+    <div id="status"></div>
+
+    <script>
+        async function connectToClickHouse() {
+            const data = new FormData();
+            data.append('host', document.getElementById('host').value);
+            data.append('port', document.getElementById('port').value);
+            data.append('user', document.getElementById('user').value);
+            data.append('jwt_token', document.getElementById('token').value);
+            data.append('database', document.getElementById('database').value);
+
+            const response = await fetch('/get_tables', { method: 'POST', body: data });
+            const result = await response.json();
+            if (result.tables) {
+                const select = document.getElementById('tableSelect');
+                result.tables.forEach(table => {
+                    const option = document.createElement('option');
+                    option.value = table;
+                    option.text = table;
+                    select.appendChild(option);
+                });
+                fetchColumns();
+            } else {
+                document.getElementById('status').textContent = "Error: " + result.error;
+            }
+        }
+
+        async function fetchColumns() {
+            const data = new FormData();
+            data.append('host', document.getElementById('host').value);
+            data.append('port', document.getElementById('port').value);
+            data.append('user', document.getElementById('user').value);
+            data.append('jwt_token', document.getElementById('token').value);
+            data.append('database', document.getElementById('database').value);
+            data.append('table', document.getElementById('tableSelect').value);
+
+            const response = await fetch('/get_columns', { method: 'POST', body: data });
+            const result = await response.json();
+            if (result.columns) {
+                const select = document.getElementById('columnSelect');
+                result.columns.forEach(column => {
+                    const option = document.createElement('option');
+                    option.value = column;
+                    option.text = column;
+                    select.appendChild(option);
+                });
+            } else {
+                document.getElementById('status').textContent = "Error: " + result.error;
+            }
+        }
+
+        async function exportCSV() {
+            const data = new FormData();
+            data.append('host', document.getElementById('host').value);
+            data.append('port', document.getElementById('port').value);
+            data.append('user', document.getElementById('user').value);
+            data.append('jwt_token', document.getElementById('token').value);
+            data.append('database', document.getElementById('database').value);
+            data.append('table', document.getElementById('tableSelect').value);
+            data.append('columns', [...document.getElementById('columnSelect').selectedOptions].map(option => option.value).join(','));
+
+            const response = await fetch('/export_to_csv', { method: 'POST', body: data });
+            const result = await response.json();
+            document.getElementById('status').textContent = result.message + " | Records: " + result.records;
+        }
+
+        async function importCSV() {
+            const data = new FormData();
+            data.append('host', document.getElementById('host').value);
+            data.append('port', document.getElementById('port').value);
+            data.append('user', document.getElementById('user').value);
+            data.append('jwt_token', document.getElementById('token').value);
+            data.append('database', document.getElementById('database').value);
+            data.append('table', document.getElementById('tableSelect').value);
+            data.append('csv_file', document.getElementById('csvFile').files[0]);
+
+            const response = await fetch('/import_csv_to_clickhouse', { method: 'POST', body: data });
+            const result = await response.json();
+            document.getElementById('status').textContent = result.message + " | Records: " + result.records;
+        }
+    </script>
+</body>
+</html>
